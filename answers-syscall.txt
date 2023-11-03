@@ -1,0 +1,4 @@
+1. In this case, the system call number is 7. As we can tell from kernel/syscall.h, this number actually represents SYS_exec
+2. user mode
+3. According to RISC-V privileged instructions, the value 13 here represents a load page fault. In particular, an error occurred while loading data from memory address 0 into s2. As we can see from the course textbook, address 0 does not map to the kernel space; rather, it begins at virtual address 0x80000000.
+4. the pid of initcode is 1.

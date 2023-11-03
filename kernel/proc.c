@@ -58,6 +58,21 @@ procinit(void)
   }
 }
 
+uint64
+getproc(void)
+{
+    uint64 num = 0;
+    struct proc* p;
+    for (int i = 0; i < NPROC;i++){
+        p = &proc[i];
+        acquire(&pid_lock);
+        if(p->state != UNUSED)
+            num++;
+        release(&pid_lock);
+    }
+    return num;
+}
+
 // Must be called with interrupts disabled,
 // to prevent race with process being moved
 // to a different CPU.
