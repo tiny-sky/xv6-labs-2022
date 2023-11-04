@@ -1,49 +1,31 @@
-xv6 is a re-implementation of Dennis Ritchie's and Ken Thompson's Unix
-Version 6 (v6).  xv6 loosely follows the structure and style of v6,
-but is implemented for a modern RISC-V multiprocessor using ANSI C.
+# System calls
 
-ACKNOWLEDGMENTS
+## xv6-book
 
-xv6 is inspired by John Lions's Commentary on UNIX 6th Edition (Peer
-to Peer Communications; ISBN: 1-57398-013-7; 1st edition (June 14,
-2000)).  See also https://pdos.csail.mit.edu/6.1810/, which provides
-pointers to on-line resources for v6.
+操作系统必须在进程之间分时共享计算机资源 -> 多路复用，隔离，交互
 
-The following people have made contributions: Russ Cox (context switching,
-locking), Cliff Frey (MP), Xiao Yu (MP), Nickolai Zeldovich, and Austin
-Clements.
+- 抽象物理资源 -> 由操作系统与底层硬件交互，各种物理设备抽象为文件描述符
+- User,supervisor,machine mode
+- 微内核与单体操作系统由许多共同的思想->实现系统调用，使用页表，处理中断，支持进程，使用锁进行并发，实现文件系统
 
-We are also grateful for the bug reports and patches contributed by
-Takahiro Aoyagi, Silas Boyd-Wickizer, Anton Burtsev, carlclone, Ian
-Chen, Dan Cross, Cody Cutler, Mike CAT, Tej Chajed, Asami Doi,
-eyalz800, Nelson Elhage, Saar Ettinger, Alice Ferrazzi, Nathaniel
-Filardo, flespark, Peter Froehlich, Yakir Goaron, Shivam Handa, Matt
-Harvey, Bryan Henry, jaichenhengjie, Jim Huang, Matúš Jókay, John
-Jolly, Alexander Kapshuk, Anders Kaseorg, kehao95, Wolfgang Keller,
-Jungwoo Kim, Jonathan Kimmitt, Eddie Kohler, Vadim Kolontsov, Austin
-Liew, l0stman, Pavan Maddamsetti, Imbar Marinescu, Yandong Mao, Matan
-Shabtay, Hitoshi Mitake, Carmi Merimovich, Mark Morrissey, mtasm, Joel
-Nider, Hayato Ohhashi, OptimisticSide, Harry Porter, Greg Price, Jude
-Rich, segfault, Ayan Shafqat, Eldar Sehayek, Yongming Shen, Fumiya
-Shigemitsu, Cam Tenny, tyfkda, Warren Toomey, Stephen Tu, Rafael Ubal,
-Amane Uehara, Pablo Ventura, Xi Wang, WaheedHafez, Keiichi Watanabe,
-Nicolas Wolovick, wxdao, Grant Wu, Jindong Zhang, Icenowy Zheng,
-ZhUyU1997, and Zou Chang Wei.
+> trampoline 包含了用于跳转内核，用户态的代码
+>
+> mapping the trapframe 用于保存与恢复用户进程的状态
 
+总之，进程捆绑了两个设计思想：一个是地址空间，用于为进程提供其自身内存的错觉，另一个是线程，用于为进程提供其自身 CPU 的错觉。在 xv6 中，进程由一个地址空间和一个线程组成。在实际操作系统中，一个进程可能具有多个线程来利用多个 CPU。
 
-The code in the files that constitute xv6 is
-Copyright 2006-2022 Frans Kaashoek, Robert Morris, and Russ Cox.
+## 启动流程
 
-ERROR REPORTS
+计算机通电 -> 自行初始化，运行bios -> bois将xv6的内核加载到内存当中 -> loader将xv6的内核加载到物理地址0x80000000(更小地址包含I/O设备) -> 在机器模式下，cpu执行entry.S，设置一个堆栈stack0（有了堆栈，此时可以执行c程序）-> 跳转到start.c中，为切换到Supervisor模式准备 -> 跳转到main.c中 -> 初始化多个设备与子系统 -> 调用initproc创建第一个进程 -> 执行第一次系统调用initcode.S -> 内核完成exec,返回/init进程的用户空间 -> init.c创建新的console设备，并打开文件描述符0,1,2 ->启动一个shell -> 系统已经启动
 
-Please send errors and suggestions to Frans Kaashoek and Robert Morris
-(kaashoek,rtm@mit.edu).  The main purpose of xv6 is as a teaching
-operating system for MIT's 6.1810, so we are more interested in
-simplifications and clarifications than new features.
+## lab-2.1
 
-BUILDING AND RUNNING XV6
+自己实现了一个系统调用，首先在user.h中去声明这个系统调用，然后usys.pl文件可以脚本化生成该函数的系统调用函数，而函数的系统调用函数在kernel中去实现
 
-You will need a RISC-V "newlib" tool chain from
-https://github.com/riscv/riscv-gnu-toolchain, and qemu compiled for
-riscv64-softmmu.  Once they are installed, and in your shell
-search path, you can run "make qemu".
+## lab-2.2
+
+- syscall.h -> 系统调用函数编号
+- syscall.c -> 系统调用函数的汇总，内核/用户数据参数的安全传递
+- defs.h    -> 系统调用函数的声明
+- sysproc.c -> 主要的系统调用的实现
+- user.h    -> 用户态的函数调用
