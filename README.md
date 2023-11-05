@@ -39,3 +39,4 @@ xv6的虚拟地址只使用64位中的低39位
   6. kvminithart-> 将根页表页写入寄存器satp，并刷新TLB
 - trampoline.S -> 从内核态返回用户态
   1. sfence.vma ->  刷新TLB
+- kalloc.c      -> 分配的物理内存页
