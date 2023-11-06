@@ -40,3 +40,22 @@ xv6的虚拟地址只使用64位中的低39位
 - trampoline.S -> 从内核态返回用户态
   1. sfence.vma ->  刷新TLB
 - kalloc.c      -> 分配的物理内存页
+  1. kinit      -> 初始化全部可用物理地址
+  2. freerange  -> 初始化两地址之间的物理地址
+  3. kfree      -> 用`1`格式化这个页面,头插到freelist
+  4. kalloc     -> 用`5`填充表明可用,从freelist拿下
+
+## 高级用法
+```c
+struct run {
+  struct run *next;
+};
+```
+上面的结构体巧妙的用到了指针地址与值的关系\
+ptr = 0x1234\
+(struct run *)ptr.run就可用于下一个值
+
+```c
+#define PGROUNDUP(sz)  (((sz)+PGSIZE-1) & ~(PGSIZE-1))
+```
+上面的代码展示了一个变量如何向上以4096对齐
