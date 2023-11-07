@@ -59,3 +59,8 @@ ptr = 0x1234\
 #define PGROUNDUP(sz)  (((sz)+PGSIZE-1) & ~(PGSIZE-1))
 ```
 上面的代码展示了一个变量如何向上以4096对齐
+
+## lab-3.1
+
+- 宏定义`LAB_PGTBL`在makefile中,只有在执行的时候会被检测到
+- 每一个页都需要先进行页面分配(kalloc) -> 然后再装载映射(mappages) -> 在进程释放之后,需要把分配的页面释放(uvmunmap)
