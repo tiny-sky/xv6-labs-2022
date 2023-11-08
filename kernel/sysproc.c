@@ -75,7 +75,38 @@ int
 sys_pgaccess(void)
 {
   // lab pgtbl: your code here.
-  return 0;
+  int numpage;
+  uint64 userbuf;
+  uint64 usermask;
+  unsigned int kvmask = 0;
+
+  argint(1, &numpage);
+  argaddr(0, &userbuf);
+  argaddr(2, &usermask);
+
+  if(numpage < 0 || numpage > 32) {
+    return -1;
+  }
+  struct proc* p = myproc();
+  
+  for (int i = 0; i < 32; i++){
+    if(userbuf > MAXVA)
+        return 1;
+    pte_t* pte = walk(p->pagetable, userbuf + i * PGSIZE, 0);
+    if(!pte)
+        panic("pagaccess: walk");
+    //标记哪些页被访问过
+    if (*pte & PTE_A) {
+        //printf("origin Kvmask -> %d\n", kvmask);
+        //printf("current -> %d\n", 1 << i);
+        kvmask |= (1 << i);
+        *pte &= (~PTE_A);
+    }
+}
+//printf("\n\nkvmask->%d\n\n", kvmask);
+if (copyout(p->pagetable, usermask, (char*)&kvmask, 32) < 0)
+    return 1;
+return 0;
 }
 #endif
 

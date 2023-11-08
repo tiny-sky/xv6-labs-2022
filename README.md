@@ -69,3 +69,12 @@ ptr = 0x1234\
 
 - 仿写freewalk,遍历页表,判断权限位
 - DFS递归打印树的深度,所以需要一个传入depth的递归函数
+
+## lab-3.3
+
+- 通过argaddr接受参数,copyout写回参数
+- vx6的PTE_A参数位是由硬件所设置的
+```
+The RISC-V hardware page walker marks these bits in the PTE whenever it resolves a TLB miss
+```
+- 总之就是获取每一页的PTE然后检测其标志位
