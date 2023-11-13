@@ -91,6 +91,11 @@ struct proc {
   int killed;                  // If non-zero, have been killed
   int xstate;                  // Exit status to be returned to parent's wait
   int pid;                     // Process ID
+  int alarm_interval;          // store the alarm interval
+  int ticknum;                 // keep track of how many ticks have passed
+  void (*handler)();              // the pointer to the handler function
+  int ticklock;
+  struct trapframe *trapframe_back;     // ensure the register contents are restored to the values 
 
   // wait_lock must be held when using this:
   struct proc *parent;         // Parent process

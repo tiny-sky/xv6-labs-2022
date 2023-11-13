@@ -63,23 +63,30 @@ usertrap(void)
     // an interrupt will change sepc, scause, and sstatus,
     // so enable only now that we're done with those registers.
     intr_on();
-
     syscall();
-  } else if((which_dev = devintr()) != 0){
-    // ok
+  } else if ((which_dev = devintr()) != 0) {
+      // ok
+    if(which_dev == 2){
+        if(p->alarm_interval){
+            if(p->ticknum%p->alarm_interval==0 && !p->ticklock){
+                p->ticklock =1;
+                p->ticklock++;
+                *p->trapframe_back = *p->trapframe;
+                p->trapframe->epc = (uint64)p->handler;
+            }
+        }
+    }
   } else {
     printf("usertrap(): unexpected scause %p pid=%d\n", r_scause(), p->pid);
     printf("            sepc=%p stval=%p\n", r_sepc(), r_stval());
     setkilled(p);
   }
-
   if(killed(p))
     exit(-1);
 
   // give up the CPU if this is a timer interrupt.
   if(which_dev == 2)
     yield();
-
   usertrapret();
 }
 

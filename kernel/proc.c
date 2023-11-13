@@ -132,6 +132,17 @@ found:
     return 0;
   }
 
+  if((p->trapframe_back = (struct trapframe *)kalloc()) == 0){
+    freeproc(p);
+    release(&p->lock);
+    return 0;
+  }
+
+  p->ticknum = 0;
+  p->alarm_interval = 0;
+  p->handler = 0;
+  p->ticklock = 0;
+
   // An empty user page table.
   p->pagetable = proc_pagetable(p);
   if(p->pagetable == 0){
@@ -161,6 +172,9 @@ freeproc(struct proc *p)
   if(p->pagetable)
     proc_freepagetable(p->pagetable, p->sz);
   p->pagetable = 0;
+   if(p->trapframe_back)
+    kfree((void*)p->trapframe_back);
+  p->trapframe_back = 0;
   p->sz = 0;
   p->pid = 0;
   p->parent = 0;
@@ -168,6 +182,10 @@ freeproc(struct proc *p)
   p->chan = 0;
   p->killed = 0;
   p->xstate = 0;
+  p->alarm_interval = 0;
+  p->ticknum = 0;
+  p->handler = 0;
+  p->ticklock = 0;
   p->state = UNUSED;
 }
 

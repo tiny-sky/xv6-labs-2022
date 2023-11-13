@@ -96,11 +96,24 @@ sys_uptime(void)
 uint64
 sys_sigalarm(void)
 {
+    int tick;
+    uint64 handler;
 
+    argint(0, &tick);
+    argaddr(1, &handler);
+
+    struct proc* p = myproc();
+    p->alarm_interval = tick;
+    p->ticknum = 0;
+    p->handler = (void(*)())handler;
+    return 0;
 }
 
 uint64
 sys_sigreturn(void)
 {
-  
+    struct proc* p = myproc();
+    p->ticklock = 0;
+    *p->trapframe = *p->trapframe_back;
+    return p->trapframe->a0;
 }
