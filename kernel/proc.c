@@ -285,7 +285,7 @@ fork(void)
 
   // Allocate process.
   if((np = allocproc()) == 0){
-    return -1;
+      return -1;
   }
 
   // Copy user memory from parent to child.

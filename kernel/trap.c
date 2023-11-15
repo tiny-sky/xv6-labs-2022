@@ -49,28 +49,56 @@ usertrap(void)
   
   // save user program counter.
   p->trapframe->epc = r_sepc();
-  
-  if(r_scause() == 8){
-    // system call
 
-    if(killed(p))
+  printf("\nr_scause->%d\n", r_scause());
+  if (r_scause() == 8) {
+      // system call
+
+      if (killed(p))
+          exit(-1);
+
+      // sepc points to the ecall instruction,
+      // but we want to return to the next instruction.
+      p->trapframe->epc += 4;
+
+      // an interrupt will change sepc, scause, and sstatus,
+      // so enable only now that we're done with those registers.
+      intr_on();
+
+      syscall();
+  } else if(r_scause() == 15){
+      pte_t* pte;
+      uint64 pa;
+      uint flags;
+      char *mem;
+      pagetable_t new;
+      uint64 index = PGROUNDDOWN(r_stval());
+
+      if ((pte = walk(p->pagetable, index, 0)) == 0)
+          panic("uvmcopy: pte should exist");
+      if((*pte & PTE_V) == 0 && (*pte & PTE_COW) == 0)
+          panic("uvmcopy: page not present");
+      *pte &= PTE_W;
+      pa = PTE2PA(*pte);
+      flags = PTE_FLAGS(*pte);
+      if((mem = kalloc()) == 0)
+      goto err; 
+    memmove(mem, (char*)pa, PGSIZE); 
+    if(mappages(new, index, PGSIZE, pa, flags) != 0){
+      kfree(mem);
+      goto err;
+    } 
+
+  err:
+      uvmunmap(new, 0, index / PGSIZE, 1);
       exit(-1);
 
-    // sepc points to the ecall instruction,
-    // but we want to return to the next instruction.
-    p->trapframe->epc += 4;
-
-    // an interrupt will change sepc, scause, and sstatus,
-    // so enable only now that we're done with those registers.
-    intr_on();
-
-    syscall();
-  } else if((which_dev = devintr()) != 0){
-    // ok
+  } else if ((which_dev = devintr()) != 0) {
+      // ok
   } else {
-    printf("usertrap(): unexpected scause %p pid=%d\n", r_scause(), p->pid);
-    printf("            sepc=%p stval=%p\n", r_sepc(), r_stval());
-    setkilled(p);
+      printf("usertrap(): unexpected scause %p pid=%d\n", r_scause(), p->pid);
+      printf("            sepc=%p stval=%p\n", r_sepc(), r_stval());
+      setkilled(p);
   }
 
   if(killed(p))

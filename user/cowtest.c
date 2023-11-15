@@ -23,10 +23,9 @@ simpletest()
     exit(-1);
   }
 
-  for(char *q = p; q < p + sz; q += 4096){
-    *(int*)q = getpid();
+  for (char* q = p; q < p + sz; q += 4096) {
+      *(int*)q = getpid();
   }
-
   int pid = fork();
   if(pid < 0){
     printf("fork() failed\n");
