@@ -9,7 +9,7 @@
 struct spinlock tickslock;
 uint ticks;
 
-extern char trampoline[], uservec[], userret[];
+extern char trampoline[], uservec[], userret[],pages[];
 
 // in kernelvec.S, calls kerneltrap().
 void kernelvec();
@@ -50,7 +50,6 @@ usertrap(void)
   // save user program counter.
   p->trapframe->epc = r_sepc();
 
-  printf("\nr_scause->%d\n", r_scause());
   if (r_scause() == 8) {
       // system call
 
@@ -67,31 +66,13 @@ usertrap(void)
 
       syscall();
   } else if(r_scause() == 15){
-      pte_t* pte;
-      uint64 pa;
-      uint flags;
-      char *mem;
-      pagetable_t new;
-      uint64 index = PGROUNDDOWN(r_stval());
+    
+      //pagetable_t new = proc_pagetable(p);
+      uint64 va = r_stval();
 
-      if ((pte = walk(p->pagetable, index, 0)) == 0)
-          panic("uvmcopy: pte should exist");
-      if((*pte & PTE_V) == 0 && (*pte & PTE_COW) == 0)
-          panic("uvmcopy: page not present");
-      *pte &= PTE_W;
-      pa = PTE2PA(*pte);
-      flags = PTE_FLAGS(*pte);
-      if((mem = kalloc()) == 0)
-      goto err; 
-    memmove(mem, (char*)pa, PGSIZE); 
-    if(mappages(new, index, PGSIZE, pa, flags) != 0){
-      kfree(mem);
-      goto err;
-    } 
-
-  err:
-      uvmunmap(new, 0, index / PGSIZE, 1);
-      exit(-1);
+      if(uvmforkcopy(p->pagetable,va) < 0){
+          p->killed = 1;
+      }
 
   } else if ((which_dev = devintr()) != 0) {
       // ok
@@ -107,7 +88,6 @@ usertrap(void)
   // give up the CPU if this is a timer interrupt.
   if(which_dev == 2)
     yield();
-
   usertrapret();
 }
 

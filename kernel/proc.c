@@ -282,7 +282,6 @@ fork(void)
   int i, pid;
   struct proc *np;
   struct proc *p = myproc();
-
   // Allocate process.
   if((np = allocproc()) == 0){
       return -1;
@@ -295,7 +294,6 @@ fork(void)
     return -1;
   }
   np->sz = p->sz;
-
   // copy saved user registers.
   *(np->trapframe) = *(p->trapframe);
 
