@@ -26,7 +26,7 @@ struct {
 struct PAGES{
     #define INDEX ((PHYSTOP-KERNBASE) / PGSIZE)
     struct spinlock lock;
-    char pages[INDEX];
+    int pages[INDEX];
 } Pages;
 
 void
@@ -42,11 +42,10 @@ Pages_set(uint64 va ,int add)
 {
   int index = (va - KERNBASE) / PGSIZE;
   acquire(&Pages.lock);
-  int res = Pages.pages[index];
-  res += add;
-  Pages.pages[index] = res;
+  Pages.pages[index] += add;
+  int num = Pages.pages[index];
   release(&Pages.lock);
-  return res;
+  return num;
 }
 
 void
