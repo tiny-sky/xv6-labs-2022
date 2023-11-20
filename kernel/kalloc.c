@@ -37,14 +37,16 @@ kinit()
   freerange(end, (void*)PHYSTOP);
 }
 
-void
+int
 Pages_set(uint64 va ,int add)
 {
   int index = (va - KERNBASE) / PGSIZE;
   acquire(&Pages.lock);
-  Pages.pages[index] +=add;
+  int res = Pages.pages[index];
+  res += add;
+  Pages.pages[index] = res;
   release(&Pages.lock);
-  return ;
+  return res;
 }
 
 void
@@ -54,6 +56,7 @@ freerange(void *pa_start, void *pa_end)
   p = (char*)PGROUNDUP((uint64)pa_start);
   for(; p + PGSIZE <= (char*)pa_end; p += PGSIZE){
     kfree(p);
+    Pages_set((uint64)p, 1);
   }
 }
 
@@ -68,8 +71,7 @@ kfree(void *pa)
 
   if(((uint64)pa % PGSIZE) != 0 || (char*)pa < end || (uint64)pa >= PHYSTOP)
     panic("kfree");
-  int index = ((uint64)pa - KERNBASE) / PGSIZE;
-  if (Pages.pages[index] > 0) {
+  if (Pages_set((uint64)pa,-1) > 0) {
     return;
   }
   

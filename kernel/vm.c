@@ -123,9 +123,9 @@ walkaddr(pagetable_t pagetable, uint64 va)
   if((*pte & PTE_U) == 0)
     return 0;
   //printf("\n%d -> %d -> %d\n", *pte & PTE_COW, *pte & PTE_W, *pte & PTE_R);
-  if((*pte & PTE_COW)){
+   /* if((*pte & PTE_COW)){
       uvmforkcopy(pagetable, va);
-  }
+   } */
   pa = PTE2PA(*pte);
   return pa;
 }
@@ -189,7 +189,6 @@ uvmunmap(pagetable_t pagetable, uint64 va, uint64 npages, int do_free)
       panic("uvmunmap: not a leaf");
     if(do_free){
       uint64 pa = PTE2PA(*pte);
-      Pages_set(pa, -1);
       kfree((void*)pa);
     }
     *pte = 0;
@@ -320,8 +319,12 @@ uvmcopy(pagetable_t old, pagetable_t new, uint64 sz)
     if((*pte & PTE_V) == 0)
       panic("uvmcopy: page not present");
  
-    *pte &= (~PTE_W);
-    *pte |= PTE_COW;
+    // *pte &= (~PTE_W);
+    // *pte |= PTE_COW;
+    if (*pte & PTE_W) { 
+      *pte ^= PTE_W; 
+      *pte |= PTE_COW; 
+    }
     pa = PTE2PA(*pte);
 
      // map pagetable to same physical addr in the new processs
@@ -345,6 +348,8 @@ uvmforkcopy(pagetable_t new,uint64 va)
     char* mem;
 
     va = PGROUNDDOWN(va);
+    if(va >= MAXVA)
+        return -1;
 
     if((pte = walk(new, va, 0)) == 0)
       panic("uvmcopy: pte should exist");
@@ -361,7 +366,7 @@ uvmforkcopy(pagetable_t new,uint64 va)
 
     if((mem = kalloc())==0)
         return -1;
-    memmove(mem, (char*)pa, PGSIZE);
+    memmove(mem, (void*)pa, PGSIZE);
     uvmunmap(new, va, 1, 1);
     if (mappages(new, va, PGSIZE, (uint64)mem, flags) != 0) {
         kfree(mem);
@@ -393,6 +398,17 @@ copyout(pagetable_t pagetable, uint64 dstva, char *src, uint64 len)
 
   while(len > 0){
     va0 = PGROUNDDOWN(dstva);
+    if(va0 >= MAXVA)
+      return -1;
+
+    pte_t *pte = walk(pagetable, va0, 0);
+    if(!pte) 
+      return -1;
+    if(*pte & PTE_COW){
+      if(uvmforkcopy(pagetable, va0) < 0){
+        return -1;
+      }
+    }
     pa0 = walkaddr(pagetable, va0);
     if (pa0 == 0) 
         return -1;
