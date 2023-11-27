@@ -67,6 +67,8 @@ void            ramdiskrw(struct buf*);
 void*           kalloc(void);
 void            kfree(void *);
 void            kinit(void);
+void            freerangeinit(void *pa_start, void *pa_end,int cpu);
+void            kfreeinit(void *pa,int cpu);
 
 // log.c
 void            initlog(int, struct superblock*);
