@@ -37,9 +37,7 @@ kinit()
       char buf[5];
       snprintf(buf, sizeof(buf), "kmem%d", i);
       initlock(&kmems[i].lock, buf);
-      printf("\nend -> %p %d\n", end,i);
-      printf("\nend -> %p\n", (end + (i + 1) * PHYCPUS));
-      freerangeinit(end + i * PHYCPUS, (void*)(end + (i + 1) * PHYCPUS), i);
+      freerangeinit((void *)(PHYSTART + i * PHYCPUS), (void*)(PHYSTART + (i + 1) * PHYCPUS), i);
   }
 }
 
@@ -48,11 +46,9 @@ freerangeinit(void *pa_start, void *pa_end,int cpu)
 {
   char *p;
   p = (char*)PGROUNDUP((uint64)pa_start);
-  for(; p + PGSIZE <= (char*)pa_end; p += PGSIZE){
-    if((uint64)p >= PHYSTOP)
-      printf("pa -> %p  %p %d\n", (uint64)p,pa_end,cpu);
+  printf("%p  ->  %p  -> %d\n",pa_start,pa_end,cpu);
+  for(; p + PGSIZE <= (char*)pa_end; p += PGSIZE)
     kfreeinit(p,cpu);
-  }
 }
 
 void
@@ -138,20 +134,24 @@ kalloc(void)
   int cpu = cpuid();
   pop_off();
 
-  while(cpu < NCPU){
-    acquire(&kmems[cpu].lock);
-    r = kmems[cpu].freelist;
+  for (; num < NCPU; ++num) {
+      acquire(&kmems[cpu].lock);
+      r = kmems[cpu].freelist;
 
-    if(r){
-      kmems[cpu].freelist = r->next;
-      break;
-    }
+      if (r) {
+          kmems[cpu].freelist = r->next;
+          break;
+      }
+
+  int cpus = cpu;
+  cpu = (cpu + 1) % NCPU;
+  release(&kmems[cpus].lock);
+}
+
+  if (r && num != NCPU){
+    kmems[cpu].freelist = r->next;
     release(&kmems[cpu].lock);
-    cpu = num++;
-  }
-  if(r)
-      kmems[cpu].freelist = r->next;
-  release(&kmems[cpu].lock);
+}
 
   if(r)
     memset((char*)r, 5, PGSIZE);

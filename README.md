@@ -47,3 +47,33 @@
 
 如果两组锁完全独立，则没有必要对所有的锁进行排序\
 但是所有锁需要对共同使用的锁进行一些排序
+
+## tests
+
+### lab-8.1
+
+在kinit的时候，给8个CPU每一个都分配一个空闲链表\
+每一个空闲链表都有一个对应的睡眠锁
+
+抢占空闲页的实现比较简单
+```c
+int num = 0;
+for (; num < NCPU; ++num) {
+      acquire(&kmems[cpu].lock);
+      r = kmems[cpu].freelist;
+
+      if (r) {
+          kmems[cpu].freelist = r->next;
+          break;
+      }
+
+  int cpus = cpu;
+  cpu = (cpu + 1) % NCPU;
+  release(&kmems[cpus].lock);
+}
+
+  if (r && num != NCPU){
+    kmems[cpu].freelist = r->next;
+    release(&kmems[cpu].lock);
+}
+```
