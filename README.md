@@ -57,23 +57,28 @@
 
 抢占空闲页的实现比较简单
 ```c
-int num = 0;
-for (; num < NCPU; ++num) {
-      acquire(&kmems[cpu].lock);
-      r = kmems[cpu].freelist;
+  push_off();
+  int cpu = cpuid();
+  pop_off();
 
-      if (r) {
-          kmems[cpu].freelist = r->next;
-          break;
-      }
-
-  int cpus = cpu;
-  cpu = (cpu + 1) % NCPU;
-  release(&kmems[cpus].lock);
-}
-
-  if (r && num != NCPU){
+  acquire(&kmems[cpu].lock);
+  r = kmems[cpu].freelist;
+  if (r) {
     kmems[cpu].freelist = r->next;
     release(&kmems[cpu].lock);
-}
+  } else {
+    release(&kmems[cpu].lock);
+    for (int i = 0; i < NCPU; i++) {
+      if (i == cpu)
+        continue;
+      acquire(&kmems[i].lock);
+      r = kmems[i].freelist;
+      if (r) {
+        kmems[i].freelist = r->next;
+        release(&kmems[i].lock);
+        break;
+      }
+      release(&kmems[i].lock);
+    }
+  }
 ```
