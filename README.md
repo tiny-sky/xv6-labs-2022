@@ -82,3 +82,64 @@
     }
   }
 ```
+### lab-8.2
+
+这个lab本质上也是将大锁转换为小锁的过程，通过降低锁的粒度来进行优化
+
+- 使用哈希桶来对不同的block进行离散
+```c
+#define HASHNUM 13
+#define HASH(key) (key % HASHNUM);
+
+struct HashTable{
+  struct spinlock lock;
+  struct buf buf;
+} HashTable[HASHNUM];
+```
+- 实现当一个桶的空闲缓存块不足时，进行对其他桶的缓存块获取\
+这里的实现通过循环依次访问每一个哈希桶
+```c
+for (int i = 0; i < HASHNUM; i++) {
+       if (i == index || HashTable[i].lock.cpu != 0)
+          continue; 
+      acquire(&HashTable[i].lock);
+      for (b = HashTable[i].buf.prev; b != &HashTable[i].buf;b = b->next){
+        if(b->refcnt == 0) {
+          b->dev = dev;
+          b->blockno = blockno;
+          b->valid = 0;
+          b->refcnt = 1;
+
+          b->next->prev = b->prev;
+          b->prev->next = b->next;
+          b->next = HashTable[index].buf.next;
+          b->prev = &HashTable[index].buf;
+          HashTable[index].buf.next->prev = b;
+          HashTable[index].buf.next = b;
+
+          release(&HashTable[i].lock);
+          release(&HashTable[index].lock);
+          acquiresleep(&b->lock);
+          return b;
+        }
+    }
+    release(&HashTable[i].lock);
+  }
+```
+为了避免死锁过程，对HashTable[i].lock.cpu 进行判断，来决定获取的哈希桶
+
+- 值得吸取的经验是：通过双向链表
+
+  prev方向 是还未使用过的缓存块
+
+  next方向 是已经使用的缓存块
+```c
+if(b->refcnt == 0){
+    b->next->prev = b->prev;
+    b->prev->next = b->next;
+    b->next = HashTable[index].buf.next;
+    b->prev = &HashTable[index].buf;
+    HashTable[index].buf.next->prev = b;
+    HashTable[index].buf.next = b;
+  }
+```

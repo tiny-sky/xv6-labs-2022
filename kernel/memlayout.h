@@ -46,8 +46,8 @@
 // from physical address 0x80000000 to PHYSTOP.
 #define KERNBASE 0x80000000L
 #define PHYSTOP (KERNBASE + 128*1024*1024)
-#define PHYSTART 0x80025000L
-#define PHYCPUS (0x88000000L- 0x80025000L)/8
+
+#define PHYCPUS (0x88000000L - 0x80025000L) / 8
 
 // map the trampoline page to the highest address,
 // in both user and kernel space.

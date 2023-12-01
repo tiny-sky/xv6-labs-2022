@@ -37,18 +37,8 @@ kinit()
       char buf[5];
       snprintf(buf, sizeof(buf), "kmem%d", i);
       initlock(&kmems[i].lock, buf);
-      freerangeinit((void *)(PHYSTART + i * PHYCPUS), (void*)(PHYSTART + (i + 1) * PHYCPUS), i);
   }
-}
-
-void
-freerangeinit(void *pa_start, void *pa_end,int cpu)
-{
-  char *p;
-  p = (char*)PGROUNDUP((uint64)pa_start);
-  //printf("%p  ->  %p  -> %d\n",pa_start,pa_end,cpu);
-  for(; p + PGSIZE <= (char*)pa_end; p += PGSIZE)
-    kfreeinit(p,cpu);
+   freerange(end, (void *)PHYSTOP);
 }
 
 void
@@ -56,8 +46,7 @@ kfreeinit(void *pa,int cpu)
 {
   struct run *r;
 
-  if (((uint64)pa % PGSIZE) != 0 || ((uint64)pa % PGSIZE) ||
-      (uint64)pa >= PHYSTOP)
+  if(((uint64)pa % PGSIZE) != 0 || (char*)pa < end || (uint64)pa >= PHYSTOP)
       panic("kfree");
 
   // Fill with junk to catch dangling refs.
@@ -76,8 +65,11 @@ freerange(void *pa_start, void *pa_end)
 {
   char *p;
   p = (char*)PGROUNDUP((uint64)pa_start);
+  push_off();
+  int cpu = cpuid();
+  pop_off();
   for(; p + PGSIZE <= (char*)pa_end; p += PGSIZE)
-    kfree(p);
+      kfreeinit(p, cpu);
 }
 
 // Free the page of physical memory pointed at by pa,
@@ -90,7 +82,7 @@ kfree(void *pa)
   struct run *r;
 
   if(((uint64)pa % PGSIZE) != 0 || (char*)pa < end || (uint64)pa >= PHYSTOP)
-    panic("kfree");
+      panic("kfree");
 
   // Fill with junk to catch dangling refs.
   memset(pa, 1, PGSIZE);
