@@ -505,29 +505,6 @@ itrunc(struct inode *ip)
       ip->addrs[NDIRECT + 1] = 0;
   }
 
-  //  if(ip->addrs[NDIRECT + 1]){
-  //   bp = bread(ip->dev, ip->addrs[NDIRECT + 1]);
-  //   a = (uint*)bp->data;
-  //   // Traverse indirect blocks
-  //   for(j = 0; j < NINDIRECT; j++){
-  //     if(a[j]){
-  //       ibp = bread(ip->dev, a[j]);
-  //       b = (uint*)ibp->data;
-  //       // Traverse data blocks
-  //       for(k = 0; k < NINDIRECT; k++){
-  //         if(b[k])
-  //           bfree(ip->dev, b[k]);
-  //       }
-  //       brelse(ibp);
-  //       bfree(ip->dev, a[j]);
-  //     }
-  //   }
-  //   brelse(bp);
-  //   bfree(ip->dev, ip->addrs[NDIRECT + 1]);
-  //   ip->addrs[NDIRECT + 1] = 0;
-  // }
-
-
   ip->size = 0;
   iupdate(ip);
 }
