@@ -8,6 +8,11 @@ struct spinlock;
 struct sleeplock;
 struct stat;
 struct superblock;
+struct vma;
+
+// sysfile.c
+int             mmap(uint64);
+int             munmap(uint64 addr, int size);
 
 // bio.c
 void            binit(void);

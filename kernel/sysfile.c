@@ -15,6 +15,9 @@
 #include "sleeplock.h"
 #include "file.h"
 #include "fcntl.h"
+#include "memlayout.h"
+
+struct vma VMA[16];
 
 // Fetch the nth word-sized system call argument as a file descriptor
 // and return both the descriptor and the corresponding struct file.
@@ -501,5 +504,173 @@ sys_pipe(void)
     fileclose(wf);
     return -1;
   }
+  return 0;
+}
+
+
+uint64
+sys_mmap(void)
+{
+    uint64 addr,vm_addr_end;
+    struct file* file;
+    struct vma* vma = 0;
+    int prot, flags, fd, length, offset;
+
+    argaddr(0, &addr);
+    argint(5, &offset);
+    argint(1, &length);
+    argint(2, &prot);
+    argint(3, &flags);
+    argint(4, &fd);
+
+    struct proc* p = myproc();
+
+    //打开文件，获得file
+    if(fd < 0 || fd >= NOFILE || (file= p->ofile[fd]) == 0)
+        return VM_FAILED;
+    //检查一些非法操作
+    if(offset < 0 || length < 0)
+        return VM_FAILED;
+    if ((prot & PROT_READ) && (!file->readable))
+        return -1;
+    if((prot & PROT_WRITE) && !(file->writable) && !(flags & MAP_PRIVATE))
+        return -1;
+
+    vm_addr_end = VMAEND;
+    for (int i = 0; i < NVMA; i++){
+        struct vma* v = &p->vma[i];
+        if(!v->use){
+            vma = v;
+            v->use = 1;
+            break;
+        } else if(v->vm_start < vm_addr_end){
+          vm_addr_end = PGROUNDDOWN(v->vm_start);
+        }
+    }
+    if (!vma)
+        return VM_FAILED;
+
+    vma->flag = flags;
+    vma->prot = prot;
+    vma->offset = offset;
+    vma->length = length;
+    vma->vm_start = vm_addr_end - PGROUNDUP(length);
+    vma->vm_file = filedup(file);
+
+    // vma->next = p->vmhead;
+    // p->vmhead = vma;
+
+    return vma->vm_start;
+}
+
+uint64
+sys_munmap(void)
+{
+    uint64 addr;
+    int size;
+
+    argaddr(0, &addr);
+    argint(1, &size);
+
+    return munmap(addr, size);
+}
+
+int
+munmap(uint64 addr,int size)
+{
+  int index = -1;
+
+  struct proc* p = myproc();
+
+  if(addr >= MAXVA)
+      return VM_FAILED;
+
+
+  for (int i = 0; i < NVMA;i++){
+    struct vma* vm = &p->vma[i];
+    if(vm->use == 1 && vm->vm_start <= addr && vm->vm_start+PGROUNDUP(vm->length) > addr){
+        index = i;
+        break;
+    }
+  }
+
+  if(index == -1)
+      return VM_FAILED;
+
+  struct vma* vma = &p->vma[index];
+
+  if(addr != vma->vm_start && addr + size != vma->vm_start + vma->length)
+      return VM_FAILED;
+
+  if(addr == vma->vm_start){
+      vma->vm_start += size;
+      vma->length -= size;
+  }else if(addr + size == vma->vm_start + vma->length){
+      vma->length -= size;
+  }
+
+  // Check if written back to disk
+  if(vma->flag & MAP_SHARED){
+      filewrite(vma->vm_file, addr, size);
+  }
+ // if (addr < PGROUNDUP(vma->offset))
+      uvmunmap(p->pagetable, addr, PGROUNDUP(size) / PGSIZE, 1);
+  
+  if(vma->length == 0){
+      fileclose(vma->vm_file);
+      vma->use = 0;
+  }
+
+  return 0;
+}
+
+int
+mmap(uint64 addr)
+{
+  char* men;
+  int perm,index = -1;
+
+  struct proc* p = myproc();
+
+  if (addr >= MAXVA) {
+    return -1;
+  }
+
+  for (int i = 0; i < NVMA;i++){
+    struct vma* vm = &p->vma[i];
+    if(vm->use == 1 && vm->vm_start <= addr && vm->vm_start+PGROUNDUP(vm->length) > addr){
+        index = i;
+        break;
+    }
+  }
+
+  if(index == -1)
+      return -1;
+
+  struct vma* vma = &p->vma[index];
+
+  // Get perm permission bit
+  perm = PTE_U;
+  perm |= (vma->prot & PROT_READ) ? PTE_R : 0;
+  perm |= (vma->prot & PROT_WRITE) ? PTE_W : 0;
+  perm |= (vma->prot & PROT_EXEC)  ? PTE_X : 0;
+  perm |= (vma->flag & MAP_SHARED) ? PTE_D : 0;
+
+  addr = PGROUNDDOWN(addr);
+
+  if ((men = kalloc()) == 0)
+      return -1;
+  memset(men, 0, PGSIZE);
+
+  //begin_op();
+  ilock(vma->vm_file->ip);
+  readi(vma->vm_file->ip, 0, (uint64)men, vma->offset + PGROUNDDOWN(addr - vma->vm_start), PGSIZE);
+  iunlock(vma->vm_file->ip);
+  //end_op();
+  if (mappages(p->pagetable, addr, PGSIZE, (uint64)men,perm) != 0) {
+      kfree(men);
+      return -1;
+  }
+
   return 0;
 }
